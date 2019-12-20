@@ -3,19 +3,27 @@ const PDF2Pic = require("pdf2pic");
 const util = require('util');
 const path = require('path');
 const sharp = require('sharp');
+const Jimp = require('jimp');
 
 class TemplateController
 {
-    static async identifyTemplate(username,templates,socketId)
+    static randomAlphabetString(length)
+    {
+        let alphabet = 'abcdefghijklmnopqsrtuv123456789';
+        let final='';
+        for(let i=0;i<length;i++)
+        {
+            final += alphabet[Math.floor(Math.random()*alphabet.length)];
+        }
+        return final;
+    }
+    static async extractData(username,templates,socketId,io)
     {
         let originalTemplates = await TemplateController.getTemplateNameIdentifier();
 
-        // console.log(username);
-        console.log(templates);
         for(let i=0;i<templates.length;i++)
         {
             let templatesDir =path.join(__dirname,'..',templates[i].destination);
-            console.log(templatesDir);
             let pdf2pic = new PDF2Pic({
                 density: 800,           // output pixels per inch
                 savename:  templates[i].originalname.substr(0, templates[i].originalname.length-4),   // output file name
@@ -25,13 +33,12 @@ class TemplateController
               });
               pdf2pic.convert(templatesDir + templates[i].originalname).then((resolve)=>
               {
-                  console.log(resolve);
                   let originalImage = resolve.path;
 
                 // file name for cropped image
                     for(let j=0;j<originalTemplates.length;j++)
                     {
-                        let outputImage = originalImage+Math.random()*10000+ '.jpg';
+                        let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';
                         sharp(originalImage)
                         .extract(
                         { 
@@ -43,15 +50,106 @@ class TemplateController
                         .toFile(outputImage)
                         .then(function(new_file_info) 
                         {
-                            console.log("Image cropped and saved");
-                            console.log(new_file_info);
-                            // tesseract.recognize("croppedImage.jpg", config)
-                            // .then(text => {
-                            //     console.log("Result:", text.split('\n'));
-                            // })
-                            // .catch(error => {
-                            //     console.log(error.message)
-                            // })
+                              const config = {
+                                lang: "dan",
+                                oem: 1,
+                                psm: 1
+                            }
+                            tesseract.recognize(outputImage, config)
+                            .then(text => {
+                                let lines =text.split('\n');
+                                for(let k=0;k<lines.length;k++)
+                                {
+                                    for(let n=0;n<originalTemplates.length;n++)
+                                    {
+                                        //console.log(lines[k]);
+                                        if(lines[k].match(originalTemplates[n].ttext)!==null)
+                                        {
+                                            outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
+                                            io.sockets.connected[socketId].emit('templateIdentified',{company:originalTemplates[n].company_name,file:outputImage});
+                                            return;
+                                        }
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                console.log(error.message)
+                            })
+                        })
+                        .catch(function(err) {
+                            console.log(err);
+                        });
+                    }
+              });
+        }
+    }
+    static async identifyTemplate(username,templates,socket)
+    {
+        let originalTemplates = await TemplateController.getTemplateNameIdentifier();
+
+        // console.log(username);
+        for(let i=0;i<templates.length;i++)
+        {
+            let templatesDir =path.join(__dirname,'..',templates[i].destination);
+            let pdf2pic = new PDF2Pic({
+                density: 800,           // output pixels per inch
+                savename:  templates[i].originalname.substr(0, templates[i].originalname.length-4),   // output file name
+                savedir: path.join(templatesDir,"/titleimages"),    // output file location
+                format: "jpg",          // output file format
+                size:'5000x5000'
+              });
+              pdf2pic.convert(templatesDir + templates[i].originalname).then((resolve)=>
+              {
+                  let originalImage = resolve.path;
+
+                // file name for cropped image
+                    for(let j=0;j<originalTemplates.length;j++)
+                    {
+                        let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';
+                        sharp(originalImage)
+                        .extract(
+                        { 
+                            width: Number(originalTemplates[j].twidth*5),
+                            height: Number(originalTemplates[j].theight*5),
+                            left: Number(originalTemplates[j].tleft*5),
+                            top: Number(originalTemplates[j].ttop *5) 
+                        })
+                        .toFile(outputImage)
+                        .then(function(new_file_info) 
+                        {
+                            // Jimp.read(outputImage, (err, newImage) => {
+                            //     if (err) throw err;
+                            //     newImage
+                            //       .greyscale()
+                            //       .contrast(1)
+                            //       .write(outputImage);
+                                  
+                            //   });
+                              const config = {
+                                lang: "dan",
+                                oem: 1,
+                                psm: 1
+                            }
+                            tesseract.recognize(outputImage, config)
+                            .then(text => {
+                                let lines =text.split('\n');
+                                for(let k=0;k<lines.length;k++)
+                                {
+                                    for(let n=0;n<originalTemplates.length;n++)
+                                    {
+                                        //console.log(lines[k]);
+                                        if(lines[k].match(originalTemplates[n].ttext)!==null)
+                                        {
+                                            outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
+                                            socket.emit('templateIdentified',{company:originalTemplates[n].company_name,file:outputImage});
+                                            return;
+                                        }
+                                    }
+                                }
+                            })
+                            .catch(error => {
+                                console.log(error.message)
+                            })
                         })
                         .catch(function(err) {
                             console.log(err);

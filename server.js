@@ -43,6 +43,8 @@ mysqlcon.connect((err)=>
     {
         global.sqlCon=mysqlcon;
         console.log('Connected to the MySQL database!');
+        
+        
     }
 });
 
@@ -115,7 +117,6 @@ var storage = multer.diskStorage(
         try
         {
             let originalFileName = file.originalname.match(/[^\.]*/);
-            console.log(file);
             let extension = file.originalname.match(/\..*/g);
             extension = extension[0];
             cb(null,originalFileName + extension); //Appending .jpg
@@ -139,7 +140,7 @@ server.post('/upload-invoice',upload.array('invoices[]'),(req,res)=>
 {
     try
     {
-        TemplateController.identifyTemplate(req.body.username,req.files,req.body.socketId);
+        TemplateController.identifyTemplate(req.body.username,req.files,io.sockets.connected[req.body.socketId]);
         res.status(200).send({message:"Uploaded successfuly!"});
     }
     catch(err)
@@ -183,11 +184,7 @@ const sharp = require('sharp');
 // pdf2pic.convertBulk("faktura2.pdf",-1).then((resolve) => {
 //     console.log("image converter successfully!");
     
-    const config = {
-        lang: "dan",
-        oem: 1,
-        psm: 1
-    }
+
 //     let originalImage = '1_1.jpg';
 
 // // file name for cropped image
@@ -415,12 +412,25 @@ function generateNameTemplates()
                 
             }
             TemplateController.saveTemplateNameIdentifier(jEntry);
+
+
+            // Unitel
+        let jEntry={
+            company_name:'Unitel',
+            ttext:'uni-tel',
+            twidth:145,
+            theight:49,
+            tleft:459,
+            ttop:31,
+            templateHeight:1000,
+            templateWidth:707
+            
+        }
+        TemplateController.saveTemplateNameIdentifier(jEntry);
         }
 */ 
 
 
-
-   
 
 
 
