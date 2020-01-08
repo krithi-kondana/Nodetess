@@ -1,0 +1,54 @@
+#################################
+Template
+#################################
+
+CREATE TABLE `luitel`.`template` (
+  `id` INT(11) NOT NULL AUTO_INCREMENT,
+  `companyName` VARCHAR(255) NOT NULL,
+  `logo_path` VARCHAR(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE INDEX `id_UNIQUE` (`id` ASC));
+
+#################################
+Template rules
+#################################
+
+CREATE TABLE `templaterules` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `templateId` int(10) unsigned NOT NULL,
+  `rule` varchar(255) NOT NULL,
+  `fieldname` varchar(255) NOT NULL,
+  `tablename` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`))
+
+#################################
+Template name identifier
+#################################
+
+CREATE TABLE `templatenameidentifier` (
+  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
+  `company_name` varchar(100) NOT NULL,
+  `ttext` varchar(100) NOT NULL,
+  `twidth` int(11) NOT NULL,
+  `theight` int(11) NOT NULL,
+  `tleft` int(11) NOT NULL,
+  `ttop` int(11) NOT NULL,
+  `templateHeight` int(11) NOT NULL,
+  `templateWidth` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`))
+
+#################################
+Invoices
+#################################
+
+CREATE TABLE `invoices` (
+  `id` int(11) unsigned NOT NULL AUTO_INCREMENT,
+  `userId` int(11) unsigned NOT NULL,
+  `templateId` int(11) unsigned NOT NULL,
+  `type` varchar(45) NOT NULL,
+  `filename` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `id_UNIQUE` (`id`))
+

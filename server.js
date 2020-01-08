@@ -3,7 +3,7 @@ const PDF2Pic = require("pdf2pic");
 const express = require('express');
 const server = express();
 const bodyParser = require('body-parser');
-
+const path = require('path');
 const cors = require('cors');
 const multer = require('multer');
 const fs = require('fs');
@@ -20,19 +20,23 @@ let connections = [];
     Controllers
 */
 
-const TemplateController = require('./controllers/templateController.js');
-const ImageController = require('./controllers/imageController.js');
-const PDFController = require('./controllers/pdfController.js');
-const databaseController = require('./controllers/databaseController');
+global.TemplateController = require('./controllers/templateController');
+global.ImageController = require('./controllers/imageController');
+global.PDFController = require('./controllers/pdfController');
+global.RuleController = require('./controllers/ruleController');
+global.InvoiceController = require('./controllers/invoiceController');
 
+
+global.originalTemplates = null;
 global.db=null; 
 global.sqlCon=null;
+
 let mysqlcon = mysql.createConnection({
     host: 'localhost',
     user: 'root',
     password: ''
 });
-mysqlcon.connect((err)=> 
+mysqlcon.connect(async(err)=> 
 {
     if (err) 
     { 
@@ -42,6 +46,7 @@ mysqlcon.connect((err)=>
     else
     {
         global.sqlCon=mysqlcon;
+        global.originalTemplates = await TemplateController.getTemplateNameIdentifier();
         console.log('Connected to the MySQL database!');
         
         
@@ -135,20 +140,58 @@ server.use(cors());
 server.use(bodyParser.urlencoded({ extended: true }));
 server.use(bodyParser.json());
 
+let mime = {
+    jpg: 'image/jpeg',
+    png: 'image/png',
+    pdf: 'application/pdf'
+};
 
-server.post('/upload-invoice',upload.array('invoices[]'),(req,res)=>
-{
+server.get('/get-preview-image/:username/:filename', function (req, res) {
     try
     {
-        TemplateController.identifyTemplate(req.body.username,req.files,io.sockets.connected[req.body.socketId]);
-        res.status(200).send({message:"Uploaded successfuly!"});
+        console.log(req.params.username);
+        var file = path.join(__dirname, 'saved-invoices/'+req.params.username+'/temp/preview-images/'+req.params.filename);
+        var type = mime[path.extname(file).slice(1)];
+        var s = fs.createReadStream(file);
+        s.on('open', function () {
+            res.set('Content-Type', type);
+            s.pipe(res);
+        });
+        s.on('error', function () {
+            res.set('Content-Type', 'text/plain');
+            res.status(404).end('Not found');
+        });
     }
     catch(err)
     {
         console.log(err);
+        return res.status(500).send({"message":"Internal Server Error!"});
     }
 
 });
+
+server.get('/upload-image-preview',(req,res)=>
+{
+    /*  
+        req.body.username
+        req.body.filename
+    */
+});
+server.post('/upload-invoice',upload.array('invoices[]'),(req,res)=>
+{
+    try
+    {
+        TemplateController.identifyInvoiceBasedOnTemplates(req.body.username,req.files,io.sockets.connected[req.body.socketId]);
+        return res.status(200).send({message:"Uploaded successfuly!"});
+    }
+    catch(err)
+    {
+        console.log(err);
+        return res.status(500).send({message:"Something happened!"});
+    }
+
+});
+
 server.post('/delete-temp-invoice',(req,res)=>
 {
     console.log(req.body);
