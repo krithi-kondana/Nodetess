@@ -4,6 +4,7 @@ const util = require('util');
 const path = require('path');
 const sharp = require('sharp');
 const Jimp = require('jimp');
+const fs = require('fs');
 
 class TemplateController
 {
@@ -122,75 +123,171 @@ class TemplateController
     {
 
     }
-    static async createAllInvoicePages(user,size,)
+    static async extractData(initialFilePath,initialFilename,companyId,socket)
     {
+        //zoneTemplates
+        let savingDir = initialFilePath.split('\\');
+        savingDir.pop();
+        savingDir= savingDir.join('\\');
+        console.log(savingDir);
 
-    }
-    static async extractData(username,templates,socketId,io)
-    {
-        let originalTemplates = await TemplateController.getTemplateNameIdentifier();
+        let pdf2pic = new PDF2Pic({
+            density: 800,           // output pixels per inch
+            savename:  TemplateController.getFilename(initialFilename)+Math.floor(Math.random()*1000),   // output file name
+            savedir: path.join(savingDir,"/zoneimages"),    // output file location
+            format: "jpg",          // output file format
+            size:'5000x5000'
+        });
 
-        for(let i=0;i<templates.length;i++)
+        pdf2pic.convertBulk(initialFilePath,-1).then((resolve) => 
         {
-            let templatesDir =path.join(__dirname,'..',templates[i].destination);
-            let pdf2pic = new PDF2Pic({
-                density: 800,           // output pixels per inch
-                savename:  templates[i].originalname.substr(0, templates[i].originalname.length-4),   // output file name
-                savedir: path.join(templatesDir,"/titleimages"),    // output file location
-                format: "jpg",          // output file format
-                size:'5000x5000'
-              });
-              pdf2pic.convert(templatesDir + templates[i].originalname).then((resolve)=>
-              {
-                  let originalImage = resolve.path;
-
-                // file name for cropped image
-                    for(let j=0;j<originalTemplates.length;j++)
+            
+            let zone;
+            for(let j=0;j<zoneTemplates.length;j++)
+            {
+                if(zoneTemplates[j].company_id === companyId)
+                {
+                    zone = zoneTemplates[j];
+                    break;
+                }
+            }
+            if(resolve.length)
+            {
+                for(let i =0;i<resolve.length;i++)
+                {
+                    let outputImage = TemplateController.getFilename(initialFilename) +Math.floor(Math.random()*1000)+".jpg";
+                    if (!fs.existsSync(path.join(savingDir,"/zoneimages/zones")))
                     {
-                        let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';
-                        sharp(originalImage)
-                        .extract(
-                        { 
-                            width: Number(originalTemplates[j].twidth*5),
-                            height: Number(originalTemplates[j].theight*5),
-                            left: Number(originalTemplates[j].tleft*5),
-                            top: Number(originalTemplates[j].ttop *5) 
-                        })
-                        .toFile(outputImage)
-                        .then(function(new_file_info) 
-                        {
-                              const config = {
-                                lang: "dan",
-                                oem: 1,
-                                psm: 1
-                            }
-                            tesseract.recognize(outputImage, config)
-                            .then(text => {
-                                let lines =text.split('\n');
-                                for(let k=0;k<lines.length;k++)
-                                {
-                                    for(let n=0;n<originalTemplates.length;n++)
-                                    {
-
-                                        if(lines[k].match(originalTemplates[n].ttext)!==null)
-                                        {
-                                            outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
-                                            io.sockets.connected[socketId].emit('templateIdentified',{company:originalTemplates[n].company_name,file:outputImage});
-                                            return;
-                                        }
-                                    }
-                                }
-                            })
-                            .catch(error => {
-                                console.log(error.message)
-                            })
-                        })
-                        .catch(function(err) {
-                            console.log(err);
-                        });
+                        fs.mkdirSync(path.join(savingDir,"/zoneimages/zones"));
                     }
-              });
-        }
+                    sharp(resolve[i].path)
+                    .extract({ 
+                        width: Number(zone.twidth)*5,
+                        height: Number(zone.theight)*5,
+                        left: Number(zone.tleft)*5,
+                        top: Number(zone.ttop)*5 
+                    })
+                    .toFile(path.join(savingDir,"/zoneimages/zones",outputImage))
+                    .then(function(new_file_info) 
+                    {
+                        const config = 
+                        {
+                            lang: "dan",
+                            oem: 1,
+                            psm: 4
+                        };
+                        tesseract.recognize(path.join(savingDir,"/zoneimages/zones",outputImage), config)
+                        .then(text => 
+                        {
+                            for(let z=0;z<companies.length;z++)
+                            {
+                                if(companies[z].id === companyId)
+                                {
+                                    console.log(text.split('\n'));
+                                    RuleParser.rules[companies[z].company_name](text.split('\n'),[],i);
+                                    break;
+                                }
+                            }
+                        })
+                        .catch(error => {
+                            console.log(error.message)
+                        })
+                    })
+                    .catch(function(err) {
+                        console.log(err);
+                    });
+                }
+            }
+            else
+            {
+                let outputImage = TemplateController.getFilename(initialFilename) +Math.floor(Math.random()*1000)+".jpg";
+                if (!fs.existsSync(path.join(savingDir,"/zoneimages/zones",outputImage)))
+                {
+                    fs.mkdirSync(path.join(savingDir,"/zoneimages/zones",outputImage));
+                }
+                sharp(resolve.path)
+                .extract({ 
+                    width: Number(zone.twidth),
+                    height: Number(zone.theight),
+                    left: Number(zone.tleft),
+                    top: Number(zone.ttop) 
+                })
+                .toFile(path.join(savingDir,"/zoneimages/zones",outputImage))
+                .then(function(new_file_info) 
+                {
+                    const config = 
+                    {
+                        lang: "dan",
+                        oem: 1,
+                        psm: 1
+                    };
+                    tesseract.recognize(path.join(savingDir,"/zoneimages/zones",outputImage), config)
+                    .then(text => {
+                        console.log("Result:", text.split('\n'));
+                    })
+                    .catch(error => {
+                        console.log(error.message)
+                    })
+                })
+                .catch(function(err) {
+                    console.log(err);
+                });
+            }
+
+
+        });
+        // pdf2pic.convert(initialFilePath).then((resolve)=>
+        // {
+        //     let originalImage = resolve.path;
+        //     for(let j=0;j<originalTemplates.length;j++)
+        //     {
+        //         let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';
+        //         sharp(originalImage)
+        //         .extract(
+        //         { 
+        //             width: Number(originalTemplates[j].twidth*5),
+        //             height: Number(originalTemplates[j].theight*5),
+        //             left: Number(originalTemplates[j].tleft*5),
+        //             top: Number(originalTemplates[j].ttop *5) 
+        //         })
+        //         .toFile(outputImage)
+        //         .then(function(new_file_info) 
+        //         {
+        //             const config = 
+        //             {
+        //                 lang: "dan",
+        //                 oem: 1,
+        //                 psm: 1
+        //             }
+        //             tesseract.recognize(outputImage, config)
+        //             .then(text => {
+        //                 let lines =text.split('\n');
+        //                 for(let k=0;k<lines.length;k++)
+        //                 {
+        //                     for(let n=0;n<originalTemplates.length;n++)
+        //                     {
+        //                         if(lines[k].match(originalTemplates[n].ttext)!==null)
+        //                         {
+        //                             let companyId = originalTemplates[n].company_id;
+        //                             outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
+        //                             socket.emit('templateIdentified',
+        //                             {
+        //                                 company:originalTemplates[n].company_name,
+        //                                 file:outputImage
+        //                             });
+        //                             TemplateController.extractData(initialFilePath,companyId,socket);
+        //                             return;
+        //                         }
+        //                     }
+        //                 }
+        //             })
+        //         })
+        //         .catch(function(err) {
+        //             console.log(err);
+        //         });
+        //         }
+        // })
+
     }
     static getTemplateRules()
     {
@@ -249,7 +346,7 @@ class TemplateController
         let parts =filename.split('.');
         return parts[0];
     }
-    static async readZoneAndIdentifyTemplate(outputImage,socket)
+    static async readZoneAndIdentifyTemplate(initialFilePath,initialFilename,outputImage,socket)
     {
         const config = 
         {
@@ -259,6 +356,7 @@ class TemplateController
         }
         tesseract.recognize(outputImage, config)
         .then(text => {
+            
             let lines =text.split('\n');
             for(let k=0;k<lines.length;k++)
             {
@@ -266,12 +364,14 @@ class TemplateController
                 {
                     if(lines[k].match(originalTemplates[n].ttext)!==null)
                     {
+                        let companyId = originalTemplates[n].company_id;
                         outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
                         socket.emit('templateIdentified',
                         {
                             company:originalTemplates[n].company_name,
                             file:outputImage
                         });
+                        TemplateController.extractData(initialFilePath,initialFilename,companyId,socket);
                         return;
                     }
                 }
@@ -290,9 +390,11 @@ class TemplateController
             format: "jpg",          // output file format
             size:'5000x5000'
         });
-        pdf2pic.convert(sInvoicesDir + jInvoice.originalname).then((resolve)=>
+        let initialFilePath = sInvoicesDir + jInvoice.originalname;
+        pdf2pic.convert(initialFilePath).then((resolve)=>
         {
             let originalImage = resolve.path;
+            console.log(originalImage);
             for(let j=0;j<originalTemplates.length;j++)
             {
                 let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';
@@ -307,7 +409,7 @@ class TemplateController
                 .toFile(outputImage)
                 .then(function(new_file_info) 
                 {
-                    TemplateController.readZoneAndIdentifyTemplate(outputImage,socket);
+                    TemplateController.readZoneAndIdentifyTemplate(initialFilePath,jInvoice.originalname,outputImage,socket);
                 })
                 .catch(function(err) {
                     console.log(err);
@@ -324,7 +426,6 @@ class TemplateController
                 let sInvoicesDir = path.join(__dirname,'..',aInvoices[i].destination);
                 // creating preview images
                 InvoiceController.generateInvoicePreview(aInvoices[i], sInvoicesDir, socket);
-                //
                 TemplateController.generateImageForPDF(aInvoices[i],sInvoicesDir,socket);
             }
         }
@@ -371,6 +472,57 @@ class TemplateController
         
         // console.log(socketId);
     }
+    static async getTemplateZones(res)
+    {
+        try
+        {
+            let type = 'zone';
+            return new Promise((resolve,reject)=>
+            {
+                sqlCon.query("SELECT\
+                company_id,\
+                twidth,\
+                theight,\
+                tleft,\
+                ttop,\
+                templateHeight,\
+                templateWidth\
+                FROM luitel.templatenameidentifier\
+                WHERE fieldType = '"+type+"'",
+                    (err2,jResult) =>
+                    {
+                        if(err2)
+                        {
+                            console.log(err2);
+                        }
+                        else
+                        {
+                            resolve(jResult);
+                        }
+                    }
+                );
+            });
+        }
+        catch(err)
+        {
+            console.log(err);
+            if(res)
+            {
+                return res.status(500).send(
+                {
+                    "message":"Error !",
+                    "code":500
+                });
+            }
+            else
+            {
+                return {
+                    "message":"Error !",
+                    "code":500
+                };
+            }
+        }
+    }
     static async getTemplateNameIdentifier(res)
     {
         try
@@ -379,6 +531,7 @@ class TemplateController
             return new Promise((resolve,reject)=>
             {
                 sqlCon.query("SELECT\
+                company_id,\
                 company_name,\
                 ttext,\
                 twidth,\

@@ -7,8 +7,8 @@ class RuleParser
     static firmafonParser = require('./specificRuleParsers/parser-firmafon.js');
     static flexfoneParser = require('./specificRuleParsers/parser-flexfone.js');
     static fullrateParser = require('./specificRuleParsers/parser-fullrate.js');
-    static globalConnectParser = require('./specificRuleParsers/parser-globalConnect.js');
-
+    static globalconnectParser = require('./specificRuleParsers/parser-globalConnect.js');
+    static ipvisionParser = require('./specificRuleParsers/parser-ipvision.js');
     static rules =
     {
         "unitel":RuleParser.unitelParser.parse,
@@ -18,7 +18,8 @@ class RuleParser
         "firmafon":RuleParser.firmafonParser.parse,
         "flexfone":RuleParser.flexfoneParser.parse,
         "fullrate":RuleParser.fullrateParser.parse,
-        "globalConnect":RuleParser.globalConnectParser.parse
+        "globalConnect":RuleParser.globalconnectParser.parse,
+        "ipvision":RuleParser.ipvisionParser.parse
     };
 }
 module.exports = RuleParser;

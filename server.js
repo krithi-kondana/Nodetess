@@ -37,8 +37,10 @@ global.PDFController = require('./controllers/pdfController');
 global.RuleController = require('./controllers/ruleController');
 global.InvoiceController = require('./controllers/invoiceController');
 global.CompanyController = require('./controllers/companyController');
+global.RuleParser = require('./controllers/ruleParser');
 
 global.originalTemplates = null;
+global.zoneTemplates = null;
 global.companies = null;
 global.templateRules = [];
 global.db=null; 
@@ -60,6 +62,7 @@ mysqlcon.connect(async(err)=>
     {
         sqlCon=mysqlcon;
         originalTemplates = await TemplateController.getTemplateNameIdentifier();
+        zoneTemplates = await TemplateController.getTemplateZones();
         companies = await CompanyController.getCompanies();
         if(companies.length)
         {
@@ -90,7 +93,6 @@ mysqlcon.connect(async(err)=>
                     }
                 }
             }
-            console.log(templateRules);
         }
     }
 });
@@ -311,7 +313,7 @@ function jimpReadFiles(path,file)
             for(let k=0;k<h;k++)
             {
                 let color =Jimp.intToRGBA(image.getPixelColor(j, k));
-                if(color.r===255 && color.g===0 && color.b===0)
+                if(color.r===237 && color.g===28 && color.b===36)
                 {
                     if(j<localMinX)
                     {
@@ -352,7 +354,7 @@ function generateTextTemplates()
 {
     try
     {
-        let templatesDir =__dirname + "/templates/backup/";
+        let templatesDir =__dirname + "/templates/zoneimages/";
         fs.readdir(templatesDir,(err,files)=>
         {
             for(let i =0;i<files.length;i++)
@@ -367,7 +369,7 @@ function generateTextTemplates()
     }
 }
 //generateTextTemplates();
-function generateNameTemplates()
+function generatezoneTemplates()
 {
     try
     {
@@ -379,8 +381,8 @@ function generateNameTemplates()
                 const pdf2pic = new PDF2Pic({
                     density: 800,           // output pixels per inch
                     savename: files[i].substr(0,files[i].length-4),   // output file name
-                    savedir: "./templates/images/",    // output file location
-                    format: "jpg",          // output file format
+                    savedir: "./templates/zoneimages/",    // output file location
+                    format: "png",          // output file format
                     size:'1000x1000'
                   });
                 pdf2pic.convert(templatesDir + "/pdf/"+files[i]).then((resolve)=>
@@ -398,7 +400,6 @@ function generateNameTemplates()
         console.log(err);
     }
 }
-
 
 /*
         let templates =[
