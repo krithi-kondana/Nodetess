@@ -14,7 +14,7 @@ class TemplateController
         {
             return new Promise((resolve,reject)=>
             {
-                global.sqlCon.query("SELECT\
+                sqlCon.query("SELECT\
                 company_name,\
                 ttext,\
                 twidth,\
@@ -64,7 +64,7 @@ class TemplateController
         {
             return new Promise((resolve,reject)=>
             {
-                global.sqlCon.query("SELECT\
+                sqlCon.query("SELECT\
                 company_name,\
                 ttext,\
                 twidth,\
@@ -192,6 +192,53 @@ class TemplateController
               });
         }
     }
+    static getTemplateRules()
+    {
+        try
+        {
+            return new Promise((resolve,reject)=>
+            {
+                global.sqlCon.query("SELECT\
+                id,\
+                company_id,\
+                rule,\
+                fieldname,\
+                tablename\
+                FROM luitel.templaterules",
+                    (err2,jResult) =>
+                    {
+                        if(err2)
+                        {
+                            console.log(err2);
+                        }
+                        else
+                        {
+                            resolve(jResult);
+                        }
+                    }
+                );
+            });
+        }
+        catch(err)
+        {
+            console.log(err);
+            if(res)
+            {
+                return res.status(500).send(
+                {
+                    "message":"Error !",
+                    "code":500
+                });
+            }
+            else
+            {
+                return {
+                    "message":"Error !",
+                    "code":500
+                };
+            }
+        }
+    }
     static getExtension(filename)
     {
         let parts = filename.split('.');
@@ -201,6 +248,38 @@ class TemplateController
     {
         let parts =filename.split('.');
         return parts[0];
+    }
+    static async readZoneAndIdentifyTemplate(outputImage,socket)
+    {
+        const config = 
+        {
+            lang: "dan",
+            oem: 1,
+            psm: 1
+        }
+        tesseract.recognize(outputImage, config)
+        .then(text => {
+            let lines =text.split('\n');
+            for(let k=0;k<lines.length;k++)
+            {
+                for(let n=0;n<originalTemplates.length;n++)
+                {
+                    if(lines[k].match(originalTemplates[n].ttext)!==null)
+                    {
+                        outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
+                        socket.emit('templateIdentified',
+                        {
+                            company:originalTemplates[n].company_name,
+                            file:outputImage
+                        });
+                        return;
+                    }
+                }
+            }
+        })
+        .catch(error => {
+            console.log(error.message)
+        })
     }
     static async generateImageForPDF(jInvoice,sInvoicesDir,socket)
     {
@@ -214,44 +293,21 @@ class TemplateController
         pdf2pic.convert(sInvoicesDir + jInvoice.originalname).then((resolve)=>
         {
             let originalImage = resolve.path;
-            for(let j=0;j<global.originalTemplates.length;j++)
+            for(let j=0;j<originalTemplates.length;j++)
             {
                 let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';
                 sharp(originalImage)
                 .extract(
                 { 
-                    width: Number(global.originalTemplates[j].twidth*5),
-                    height: Number(global.originalTemplates[j].theight*5),
-                    left: Number(global.originalTemplates[j].tleft*5),
-                    top: Number(global.originalTemplates[j].ttop *5) 
+                    width: Number(originalTemplates[j].twidth*5),
+                    height: Number(originalTemplates[j].theight*5),
+                    left: Number(originalTemplates[j].tleft*5),
+                    top: Number(originalTemplates[j].ttop *5) 
                 })
                 .toFile(outputImage)
                 .then(function(new_file_info) 
                 {
-                        const config = {
-                        lang: "dan",
-                        oem: 1,
-                        psm: 1
-                    }
-                    tesseract.recognize(outputImage, config)
-                    .then(text => {
-                        let lines =text.split('\n');
-                        for(let k=0;k<lines.length;k++)
-                        {
-                            for(let n=0;n<global.originalTemplates.length;n++)
-                            {
-                                if(lines[k].match(global.originalTemplates[n].ttext)!==null)
-                                {
-                                    outputImage = outputImage.substr(0,outputImage.length-26)+'.pdf';
-                                    socket.emit('templateIdentified',{company:global.originalTemplates[n].company_name,file:outputImage});
-                                    return;
-                                }
-                            }
-                        }
-                    })
-                    .catch(error => {
-                        console.log(error.message)
-                    })
+                    TemplateController.readZoneAndIdentifyTemplate(outputImage,socket);
                 })
                 .catch(function(err) {
                     console.log(err);
@@ -263,18 +319,18 @@ class TemplateController
     {
         try
         {
-            
             for(let i=0;i<aInvoices.length;i++)
             {
                 let sInvoicesDir = path.join(__dirname,'..',aInvoices[i].destination);
-                global.InvoiceController.generateInvoicePreview(aInvoices[i], sInvoicesDir, socket);
-                global.TemplateController.generateImageForPDF(aInvoices[i],sInvoicesDir,socket);
+                // creating preview images
+                InvoiceController.generateInvoicePreview(aInvoices[i], sInvoicesDir, socket);
+                //
+                TemplateController.generateImageForPDF(aInvoices[i],sInvoicesDir,socket);
             }
-
         }
         catch(err)
         {
-
+            console.log(err);
         }
 
 
@@ -319,9 +375,10 @@ class TemplateController
     {
         try
         {
+            let type = 'company';
             return new Promise((resolve,reject)=>
             {
-                global.sqlCon.query("SELECT\
+                sqlCon.query("SELECT\
                 company_name,\
                 ttext,\
                 twidth,\
@@ -330,7 +387,8 @@ class TemplateController
                 ttop,\
                 templateHeight,\
                 templateWidth\
-                FROM luitel.templatenameidentifier",
+                FROM luitel.templatenameidentifier\
+                WHERE fieldType = '"+type+"'",
                     (err2,jResult) =>
                     {
                         if(err2)
@@ -386,7 +444,7 @@ class TemplateController
             keyString+=keys[i];
             valueString+="?";
             valuesArray.push(jEntry[keys[i]]);
-            global.sqlCon.query("INSERT INTO luitel.templatenameidentifier ("+keyString+") VALUES ("+valueString+")",valuesArray,
+            sqlCon.query("INSERT INTO luitel.templatenameidentifier ("+keyString+") VALUES ("+valueString+")",valuesArray,
                 (err2,jResult) =>
                 {
                     if(err2)

@@ -20,14 +20,27 @@ let connections = [];
     Controllers
 */
 
+/*
+
+    Get all 
+    Upload files =>
+    Identify the template =>
+    Get each page and crop the important parts =>
+    OCR each of the parts =>
+    based on the rules from the db figure out whats what =>
+    save 
+
+
+*/
 global.TemplateController = require('./controllers/templateController');
-global.ImageController = require('./controllers/imageController');
 global.PDFController = require('./controllers/pdfController');
 global.RuleController = require('./controllers/ruleController');
 global.InvoiceController = require('./controllers/invoiceController');
-
+global.CompanyController = require('./controllers/companyController');
 
 global.originalTemplates = null;
+global.companies = null;
+global.templateRules = [];
 global.db=null; 
 global.sqlCon=null;
 
@@ -45,11 +58,40 @@ mysqlcon.connect(async(err)=>
     }
     else
     {
-        global.sqlCon=mysqlcon;
-        global.originalTemplates = await TemplateController.getTemplateNameIdentifier();
-        console.log('Connected to the MySQL database!');
-        
-        
+        sqlCon=mysqlcon;
+        originalTemplates = await TemplateController.getTemplateNameIdentifier();
+        companies = await CompanyController.getCompanies();
+        if(companies.length)
+        {
+            temporaryRules = await TemplateController.getTemplateRules();
+            for(let i=0;i<temporaryRules.length;i++)
+            {
+                if(!templateRules.length)
+                {
+                    templateRules.push([]);
+                    templateRules[0].push(temporaryRules[i]);
+                }
+                else
+                {
+                    let added = false;
+                    for(let j=0;j<templateRules.length;j++)
+                    {
+                        if(templateRules[j][0].company_id === temporaryRules[i].company_id)
+                        {
+                            templateRules[j].push(temporaryRules[i]);
+                            added = true;
+                            break;
+                        }
+                    }
+                    if(!added)
+                    {
+                        templateRules.push([]);
+                        templateRules[templateRules.length-1].push(temporaryRules[i]);
+                    }
+                }
+            }
+            console.log(templateRules);
+        }
     }
 });
 
@@ -298,6 +340,14 @@ function jimpReadFiles(path,file)
 // {
 
 // }
+function generateAreaForCustomerName()
+{
+
+}
+function generateAreasForTemplateInfo()
+{
+
+}
 function generateTextTemplates()
 {
     try
