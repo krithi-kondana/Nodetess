@@ -10,11 +10,13 @@ const fs = require('fs');
 const socketIo = require('socket.io');
 const mysql = require('mysql');
 const ioServer = require('http').Server(server);
-const io = require('socket.io')(ioServer);
+const gm = require('gm');
+global.io = require('socket.io')(ioServer);
 const Jimp = require('jimp');
 const port = 9000;
 const ioPort = 9001;
-let connections = [];
+global.connections = [];
+
 
 /*
     Controllers
@@ -32,6 +34,7 @@ let connections = [];
 
 
 */
+global.MasterlistController= require('./controllers/masterlistController');
 global.TemplateController = require('./controllers/templateController');
 global.PDFController = require('./controllers/pdfController');
 global.RuleController = require('./controllers/ruleController');
@@ -42,6 +45,7 @@ global.RuleParser = require('./controllers/ruleParser');
 global.originalTemplates = null;
 global.zoneTemplates = null;
 global.companies = null;
+global.masterlist = null;
 global.templateRules = [];
 global.db=null; 
 global.sqlCon=null;
@@ -64,6 +68,7 @@ mysqlcon.connect(async(err)=>
         originalTemplates = await TemplateController.getTemplateNameIdentifier();
         zoneTemplates = await TemplateController.getTemplateZones();
         companies = await CompanyController.getCompanies();
+        masterlist = await MasterlistController.dbReadAll();
         if(companies.length)
         {
             temporaryRules = await TemplateController.getTemplateRules();
@@ -105,21 +110,23 @@ io.on('connection', (socket) =>
     {
         'id':socket.id
     }
-    connections.push(newSocket);
+    console.log('Somebody connected !'+socket.id);
+    connections[socket.id] = newSocket;
+
+    socket.on('identify-template',(data)=>
+    {
+        TemplateController.extractData(data.initialFilePath,data.initialFilename,data.companyId,socket);
+    });
     socket.on('disconnect',() =>
     {
         // After a client disconnects, we remove him from the array.
 
         try
         {
-            for(let i=0; i<connections.length; i++)
-            {
-                if(connections[i].id == socket.id)
-                {
-                    connections.splice(i,1);
-                }
-                console.log(connections);
-            }
+            delete connections[socket.id];
+            console.log('Somebody disconnected !' + socket.id);
+            console.log(connections);
+            
         }
         catch(err)
         {

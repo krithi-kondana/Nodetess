@@ -50,6 +50,7 @@ class InvoiceController
             format: "jpg",          // output file format
             size:'500x500'
         });
+        console.log(sInvoicesDir + jInvoice.originalname);
         pdf2picPreviewImages.convert(sInvoicesDir + jInvoice.originalname).then((resolve)=>
         {
             socket.emit('image-preview', 
@@ -58,6 +59,10 @@ class InvoiceController
                 name:jInvoice         // invoice
             });
             console.log(jInvoice.originalname);
+        }).catch((reject)=>
+        {
+            console.log('yoooooooooooooooooooooooooooooo');
+            console.log(reject);
         });
     }
 }
