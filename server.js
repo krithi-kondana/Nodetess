@@ -15,6 +15,8 @@ global.io = require('socket.io')(ioServer);
 const Jimp = require('jimp');
 const port = 9000;
 const ioPort = 9001;
+const csvParser = require('csv-parser');
+const xlsx = require('node-xlsx');
 global.connections = [];
 
 
@@ -101,6 +103,69 @@ mysqlcon.connect(async(err)=>
         }
     }
 });
+
+
+
+
+
+// const csvOffers = [];
+let offersPath = path.join(__dirname+'/csv-offers');
+let xlsxOffers;
+global.offers = [];
+fs.readdir(offersPath, function(err, filenames) {
+if (err) 
+{
+    console.log(err);
+    return;
+}
+    filenames.forEach(function(filename) 
+    {
+        let fileToProcess = path.join(offersPath,filename);
+        if(path.extname(filename) ==='csv')
+        {
+            fs.createReadStream(fileToProcess)
+            .pipe(csvParser())
+            .on('data', (data) => csvOffers.push(data))
+            .on('end', () => {
+                console.log(csvOffers);
+            });
+        }
+        else if(path.extname(filename) ==='.xlsx')
+        {
+            xlsxOffers = xlsx.parse(fileToProcess);
+            for(let i=0;i<xlsxOffers.length;i++)
+            {
+                for(let j=0;j<xlsxOffers[i].data.length;j++)
+                {
+                    if(!(i == 0 && j ==0))
+                    {
+                        let newOffer = {};
+                        newOffer.abonamentNr = xlsxOffers[i].data[j][0];
+                        newOffer.type = xlsxOffers[i].data[j][1];
+                        newOffer.name = xlsxOffers[i].data[j][2];
+                        newOffer.datapack = xlsxOffers[i].data[j][3];
+                        newOffer.talking = xlsxOffers[i].data[j][4];
+                        newOffer.sms = xlsxOffers[i].data[j][5];
+                        newOffer.dktoeu = xlsxOffers[i].data[j][6];
+                        newOffer.eutodk = xlsxOffers[i].data[j][7];
+                        newOffer.international = xlsxOffers[i].data[j][8];
+                        newOffer.conversionIncluded = xlsxOffers[i].data[j][9];
+                        newOffer.binding = xlsxOffers[i].data[j][10];
+                        newOffer.period = xlsxOffers[i].data[j][11];
+                        newOffer.myphone = xlsxOffers[i].data[j][12];
+                        newOffer.price = xlsxOffers[i].data[j][13];
+                        newOffer.total = xlsxOffers[i].data[j][14];
+                        newOffer.company = xlsxOffers[i].data[j][15];
+                        offers.push(newOffer);
+                    }
+                }
+            }
+        }
+
+    });
+});
+
+
 
 io.on('connection', (socket) =>
 {
@@ -243,6 +308,30 @@ server.post('/upload-invoice',upload.array('invoices[]'),(req,res)=>
 
 });
 
+server.get('/companies',(req,res)=>
+{
+    try
+    {
+        res.status(200).send(companies);
+    }
+    catch(err)
+    {
+        console.log(err);
+        res.status(500).send({'message':'Internal Server Error!'});
+    }
+})
+server.get('/offers',(req,res)=>
+{
+    try
+    {
+        res.status(200).send(global.offers);
+    }
+    catch(err)
+    {
+        console.log(err);
+        res.status(500).send({'message':'Internal Server Error!'});
+    }
+})
 server.post('/delete-temp-invoice',(req,res)=>
 {
     console.log(req.body);

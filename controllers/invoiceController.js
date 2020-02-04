@@ -61,7 +61,6 @@ class InvoiceController
             console.log(jInvoice.originalname);
         }).catch((reject)=>
         {
-            console.log('yoooooooooooooooooooooooooooooo');
             console.log(reject);
         });
     }
