@@ -6,6 +6,7 @@ const bodyParser = require('body-parser');
 const path = require('path');
 const cors = require('cors');
 const multer = require('multer');
+const sha512 = require('js-sha512');
 const fs = require('fs');
 const socketIo = require('socket.io');
 const mysql = require('mysql');
@@ -17,9 +18,10 @@ const port = 9000;
 const ioPort = 9001;
 const csvParser = require('csv-parser');
 const xlsx = require('node-xlsx');
+const request  = require('request');
 global.connections = [];
 
-
+global.hashsalt = "MtVOadElRzg6qp40vF7Z";
 /*
     Controllers
 */
@@ -43,7 +45,7 @@ global.RuleController = require('./controllers/ruleController');
 global.InvoiceController = require('./controllers/invoiceController');
 global.CompanyController = require('./controllers/companyController');
 global.RuleParser = require('./controllers/ruleParser');
-
+global.UserController = require('./controllers/userController');
 global.originalTemplates = null;
 global.zoneTemplates = null;
 global.companies = null;
@@ -149,13 +151,12 @@ if (err)
                         newOffer.dktoeu = xlsxOffers[i].data[j][6];
                         newOffer.eutodk = xlsxOffers[i].data[j][7];
                         newOffer.international = xlsxOffers[i].data[j][8];
-                        newOffer.conversionIncluded = xlsxOffers[i].data[j][9];
-                        newOffer.binding = xlsxOffers[i].data[j][10];
-                        newOffer.period = xlsxOffers[i].data[j][11];
-                        newOffer.myphone = xlsxOffers[i].data[j][12];
-                        newOffer.price = xlsxOffers[i].data[j][13];
-                        newOffer.total = xlsxOffers[i].data[j][14];
-                        newOffer.company = xlsxOffers[i].data[j][15];
+                        newOffer.binding = xlsxOffers[i].data[j][9];
+                        newOffer.termination = xlsxOffers[i].data[j][10];
+                        newOffer.price = xlsxOffers[i].data[j][11];
+                        newOffer.totalprice = xlsxOffers[i].data[j][12];
+                        newOffer.createprice = xlsxOffers[i].data[j][13];
+                        newOffer.company = xlsxOffers[i].data[j][14];
                         offers.push(newOffer);
                     }
                 }
@@ -262,6 +263,126 @@ let mime = {
     pdf: 'application/pdf'
 };
 
+let initialRisikaToken = "jwt eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpZCI6MjE0NCwidHlwZSI6InNpbmdsZS11c2VyIiwiZ3JhbnRfcGVybWl0IjpudWxsLCJjb21wYW55Ijo2NjUsImlhdCI6MTU3NTM3NjA2MCwibmJmIjoxNTc1Mzc2MDYwLCJleHAiOjQ3MzEwNDk2NjB9.vD7otDvaNoGERDkRJHnXkCO4LHE1mw5IUDqtgMHtS2A";
+let usableRisikaToken;
+server.post('/get-company-info',async (req,res)=>
+{
+    try
+    {
+        let cvr = req.body.cvr;
+        let response = await getRisikaCompanyInfo(cvr);
+        res.status(200).send(response);
+    }
+    catch(err)
+    {
+        console.log(err);
+    }
+});
+async function getRisikaCompanyInfo(cvr)
+{
+    try
+    {
+        return new Promise(async (resolve,reject)=>
+        {
+            let response;
+            if(usableRisikaToken)
+            {
+                response= await getCompanyInfo(cvr);
+            } 
+            else if(!usableRisikaToken || response.error)
+            {
+                response = await getRefreshToken();
+                usableRisikaToken = response.token;
+                response = await getCompanyInfo(cvr);
+            }
+            resolve(response);       
+        });
+    }
+    catch(err)
+    {
+        reject(err);
+    }
+
+}
+function getRefreshToken()
+{
+    try
+    {
+        return new Promise((resolve,reject)=>
+        {
+            var options = 
+            {
+                url: 'https://api.risika.dk/v1.2/access/refresh_token/',
+                headers: 
+                {
+                    'Content-Type': 'application/json',
+                    'Authorization': initialRisikaToken
+                }
+            };
+            request(options,(error,response,body)=>
+            {
+                if(error)
+                {
+                    console.log(error)
+                    reject(error);
+                }
+                else
+                {
+                    if(response.statusCode ==200)
+                    {
+                        resolve(JSON.parse(body));
+                    }   
+                }
+            });
+        });
+    }
+    catch(err)
+    {
+        console.log(err);
+    }
+}
+function getCompanyInfo(cvr)
+{
+    try
+    {
+        return new Promise((resolve,reject)=>
+        {
+            var options = 
+            {
+                url: 'https://api.risika.dk/v1.2/dk/company/basics/'+cvr+'/',
+                headers: 
+                {
+                    'Content-Type': 'application/json',
+                    'Authorization': usableRisikaToken
+                }
+            };
+            request(options,(error,response,body)=>
+            {
+                if(error)
+                {
+                    console.log(error)
+                    reject(error);
+                }
+                else
+                {
+                    if(response.statusCode == 401)
+                    {
+                        resolve(JSON.parse(body));
+                    }
+                    else if(response.statusCode ==200)
+                    {
+                        resolve(JSON.parse(body));
+                    }   
+                }
+            });
+        });
+    }
+    catch(err)
+    {
+        console.log(err);
+    }
+
+}
 server.get('/get-preview-image/:username/:filename', function (req, res) {
     try
     {
@@ -332,6 +453,37 @@ server.get('/offers',(req,res)=>
         res.status(500).send({'message':'Internal Server Error!'});
     }
 })
+server.post('/register-user',(req,res)=>
+{
+    try
+    {
+        let jEntry =
+        {
+            'username':req.body.username, // required
+            'number':req.body.email, // required
+            'password':sha512(req.body.password + hashsalt), // required
+            'cvr':req.body.cvr
+        };
+        UserController.createUser(jEntry,res);
+    }
+    catch(err)
+    {
+        console.log(err);
+        res.status(500).send({'message':'Internal Server Error!'});
+    }
+});
+server.post('/login-user',(req,res)=>
+{
+    try
+    {
+
+    }
+    catch(err)
+    {
+        console.log(err);
+        res.status(500).send({'message':'Internal Server Error!'});
+    }
+});
 server.post('/delete-temp-invoice',(req,res)=>
 {
     console.log(req.body);

@@ -83,7 +83,6 @@ class RuleParser
 
                     let rule = file.rules[k];
                     let match = line.match(new RegExp(rule.rule));
-
                     if(match && rule.field_id)
                     {
                         console.log(match);
