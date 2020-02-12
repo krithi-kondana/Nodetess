@@ -129,7 +129,6 @@ if (err)
             .pipe(csvParser())
             .on('data', (data) => csvOffers.push(data))
             .on('end', () => {
-                console.log(csvOffers);
             });
         }
         else if(path.extname(filename) ==='.xlsx')
@@ -176,7 +175,6 @@ io.on('connection', (socket) =>
     {
         'id':socket.id
     }
-    console.log('Somebody connected !'+socket.id);
     connections[socket.id] = newSocket;
 
     socket.on('identify-template',(data)=>
@@ -386,7 +384,6 @@ function getCompanyInfo(cvr)
 server.get('/get-preview-image/:username/:filename', function (req, res) {
     try
     {
-        console.log(req.params.username);
         var file = path.join(__dirname, 'saved-invoices/'+req.params.username+'/temp/preview-images/'+req.params.filename);
         var type = mime[path.extname(file).slice(1)];
         var s = fs.createReadStream(file);

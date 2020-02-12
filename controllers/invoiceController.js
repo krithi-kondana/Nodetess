@@ -42,7 +42,6 @@ class InvoiceController
     }
     static async generateInvoicePreview(jInvoice, sInvoicesDir, socket)
     {
-        console.log(TemplateController);
         let pdf2picPreviewImages = new PDF2Pic({
             density: 800,           // output pixels per inch
             savename:  global.TemplateController.getFilename(jInvoice.originalname),   // output file name
@@ -50,7 +49,6 @@ class InvoiceController
             format: "jpg",          // output file format
             size:'500x500'
         });
-        console.log(sInvoicesDir + jInvoice.originalname);
         pdf2picPreviewImages.convert(sInvoicesDir + jInvoice.originalname).then((resolve)=>
         {
             socket.emit('image-preview', 
@@ -58,7 +56,6 @@ class InvoiceController
                 imageName:resolve.name, // preview-image filename
                 name:jInvoice         // invoice
             });
-            console.log(jInvoice.originalname);
         }).catch((reject)=>
         {
             console.log(reject);

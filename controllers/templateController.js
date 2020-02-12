@@ -187,7 +187,6 @@ class TemplateController
                         rules: x != -1 ? templateRules[x] : [],
                         pages:resolve.length
                     }
-                    console.log('YOOOOOOOOOO');
                     RuleParser.parseInitializeDocument(document);
 
                     for(let i =0;i<resolve.length;i++)
