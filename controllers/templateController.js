@@ -146,6 +146,7 @@ class TemplateController
         });
 
         let argument = "%p ";
+        console.log(initialFilePath);
         let image = await gm(initialFilePath);
         image.identify(argument, (error, data) => 
         {
