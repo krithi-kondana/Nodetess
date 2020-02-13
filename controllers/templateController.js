@@ -129,7 +129,6 @@ class TemplateController
         let savingDir = initialFilePath.split('\\');
         savingDir.pop();
         savingDir= savingDir.join('\\');
-        console.log(savingDir);
         if (!fs.existsSync(path.join(savingDir,"/zoneimages")))
         {
             fs.mkdirSync(path.join(savingDir,"/zoneimages"));
@@ -147,7 +146,7 @@ class TemplateController
         });
 
         let argument = "%p ";
-        let image = gm(initialFilePath)
+        let image = await gm(initialFilePath);
         image.identify(argument, (error, data) => 
         {
             if (error) 
@@ -398,7 +397,6 @@ class TemplateController
         pdf2pic.convert(initialFilePath).then((resolve)=>
         {
             let originalImage = resolve.path;
-            console.log(originalImage);
             for(let j=0;j<originalTemplates.length;j++)
             {
                 let outputImage = originalImage.substr(0,originalImage.length-4)+TemplateController.randomAlphabetString(20)+ '.jpg';

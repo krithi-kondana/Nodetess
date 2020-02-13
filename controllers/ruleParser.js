@@ -27,7 +27,6 @@ class RuleParser
         {
             connections[data.socketId].processing = {};
         }
-        console.log("Pages "+ data.pages);
         let document =
         {
             initialFilePath:data.initialFilePath,
@@ -85,7 +84,6 @@ class RuleParser
                     let match = line.match(new RegExp(rule.rule));
                     if(match && rule.field_id)
                     {
-                        console.log(match);
                         for(let n=0;n<masterlist.length;n++)
                         {
                             if(masterlist[n].id == rule.field_id && masterlist[n].major)
