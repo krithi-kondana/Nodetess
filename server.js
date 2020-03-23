@@ -63,7 +63,7 @@ global.sqlCon=null;
 let mysqlcon = mysql.createConnection({
     user:'doadmin',
     password:'n50pvqwc59xjqrsc',
-    host:'db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com',
+    host:'localhost',
     port:25060
 })
 
