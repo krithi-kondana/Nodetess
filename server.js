@@ -65,8 +65,7 @@ let mysqlcon = mysql.createConnection({
     password:'n50pvqwc59xjqrsc',
     host:'localhost',
     port:25060,
-    database:'defaultdb',
-    ssl:'REQUIRED'
+    database:'defaultdb'
 })
 
 
