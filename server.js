@@ -54,15 +54,25 @@ global.templateRules = [];
 global.db=null; 
 global.sqlCon=null;
 
+// let mysqlcon = mysql.createConnection({
+//     host: 'localhost',
+//     user: 'root',
+//     password: ''
+// });
+
 let mysqlcon = mysql.createConnection({
-    host: 'localhost',
-    user: 'root',
-    password: ''
-});
+    user:'doadmin',
+    password:'n50pvqwc59xjqrsc',
+    host:'db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com',
+    port:25060
+})
+
+
 mysqlcon.connect(async(err)=> 
 {
     if (err) 
     { 
+        console.log(err);
         console.log('Cannot connect to the MySQL database');
         return false;
     }
@@ -156,6 +166,7 @@ if (err)
                         newOffer.totalprice = xlsxOffers[i].data[j][12];
                         newOffer.createprice = xlsxOffers[i].data[j][13];
                         newOffer.company = xlsxOffers[i].data[j][14];
+                        newOffer.rating = xlsxOffers[i].data[j][15];
                         offers.push(newOffer);
                     }
                 }

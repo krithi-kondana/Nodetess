@@ -1,6 +1,9 @@
+const secret = require('../credentials/secrets');
+const emailSender = require('./emailSenderController');
+
 class UserController 
 {
-    static createUser (jEntry,res)
+    static createUser = (jEntry,res) =>
     {
         try
         {
@@ -8,26 +11,26 @@ class UserController
             let valueString="";
             let valuesArray=[];
             let i;
-    
+
             let keys=Object.keys(jEntry);
             let n=keys.length;
-    
+
             for(i=0;i<n-1;i+=1)
             {
                 keyString+=keys[i]+",";
                 valueString+="?,";
                 valuesArray.push(jEntry[keys[i]]);
             }
-    
+
             keyString+=keys[i];
             valueString+="?";
             valuesArray.push(jEntry[keys[i]]);
-
-            sqlCon.query("SELECT id FROM luitel.users WHERE username=? OR cvr=?",[jEntry.username,jEntry.cvr],(err,jResult)=>
+    
+            global.sqlCon.query("SELECT id FROM luitel.users WHERE cvr=? OR email=?",[jEntry.cvr,jEntry.email],(err,jResult)=>
             {
                 if(jResult.length == 0)
                 {
-                    sqlCon.query("INSERT INTO luitel.users ("+keyString+") VALUES ("+valueString+")",valuesArray,function (err,jResult)
+                    global.sqlCon.query("INSERT INTO luitel.users ("+keyString+") VALUES ("+valueString+")",valuesArray,function (err,jResult)
                     {
                         if(err)
                         {
@@ -40,6 +43,8 @@ class UserController
                         }
                         else
                         {
+                            console.log(jEntry.activationKey);
+                            emailSender.sendEmail(jEntry.activationKey,'claudiu.cuciurean@yahoo.com');
                             return res.status(200).send(
                             {
                                 "message":"Entry added succesfully !",
@@ -51,22 +56,161 @@ class UserController
                 else
                 {
                     return res.status(200).send(
-                        {
-                            "message":"Username / email already existing !",
-                            "code":400
-                        });
+                    {
+                        "message":"Username / email already existing !",
+                        "code":400
+                    });
                 }
             })
-    
-            
         }
         catch(err)
         {
-          console.log(err);
-          return res.status(500).send(
+        console.log(err);
+        return res.status(500).send(
             {
-                  "message":"Error !",
-                  "code":500
+                "message":"Error !",
+                "code":500
+            });
+        }
+    }
+    static checkLogin = (req,res) =>
+    {
+        try
+        {
+            let key = cookielicious.readCookie(req,'key');
+            
+            if(key)
+            {
+                let decoded = jwt.verify(key,hashSecret.jwtSecret);
+
+                if(decoded && decoded == Number(decoded))
+                {
+                    return res.status(200).send(
+                    {
+                            "message":"You are already logged in!",
+                            "code":1
+                    });
+                }
+                else
+                {
+                    return res.status(200).send(
+                    {
+                            "message":"You need to login !",
+                            "code":401
+                    });
+                }
+            }
+            else
+            {
+                return res.status(200).send(
+                {
+                        "message":"You need to login !",
+                        "code":401
+                });
+            }
+            
+
+        }
+        catch(err)
+        {
+            return res.status(500).send(
+            {
+                    "message":"Error !",
+                    "code":500
+            });
+        }
+    }
+    static logout = (req,res) =>
+    {
+        try
+        {
+            res = cookielicious.deleteCookie(res,'key');
+            return res.status(200).send(
+            {
+                    "message":"Succesfully logged out !",
+                    "code":200
+            });
+        }
+        catch(err)
+        {
+            return res.status(500).send(
+            {
+                    "message":"Error !",
+                    "code":500
+            });
+        }
+    }
+    static login= (jEntry,res)=>
+    {
+        try
+        {
+        global.sqlCon.query("SELECT * FROM luitel.users WHERE username=? OR email=?",[jEntry.login, jEntry.login],(err,jResult)=>
+            {
+            if(err)
+            {
+                return res.status(500).send({"message":"Error !"});
+            }
+            else
+            { 
+                if(jResult.length==1 && jResult[0].activated == 1)
+                {
+                
+                if(jResult[0].password == jEntry.password)
+                {
+                    // setting the cookie on the serverside ( httponly ) with the jsonwebtoken signature of the id.
+
+                    res = cookielicious.addCookie(res,'key',jwt.sign(jResult[0].id,hashSecret.jwtSecret)); 
+                    return res.status(200).send({"message":'logged'});
+                }
+                else
+                {
+                    return res.status(401).send({"message":"Invalid username/password !"});
+                }
+                }
+                else
+                {
+                return res.status(401).send({"message":"Invalid username/password !"});
+                }
+                
+            }
+            
+            });
+    
+        }
+        catch(err)
+        {
+            return res.status(500).send(
+            {
+                    "message":"Error !",
+                    "code":500
+            });
+        }
+    }
+    static activateAccount= (activeK,res)=>
+    {
+        try
+        {
+            global.sqlCon.query("UPDATE luitel.users SET activated=1 WHERE activationKey=? AND activated=0",[activeK],(err,jResult)=>
+            {
+            if(err)
+            {
+                return res.status(500).send({"message":"Error !"});
+            }
+            else
+            { 
+                
+                //res = cookielicious.addCookie(res,'key',jwt.sign(jResult[0].id,hashSecret.jwtSecret)); 
+                return res.status(200).send({"message":"activated"});
+            }
+            
+            });
+        }
+        catch(err)
+        {
+            return res.status(500).send(
+            {
+                    "message":"Error !",
+                    "code":500
             });
         }
     }
