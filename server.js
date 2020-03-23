@@ -63,8 +63,7 @@ global.sqlCon=null;
 let mysqlcon = mysql.createConnection({
     user:'doadmin',
     password:'n50pvqwc59xjqrsc',
-    host:'localhost',
-    port:25060,
+    socketPath:'/var/run/mysqld/mysqld.sock',
     database:'defaultdb'
 })
 
