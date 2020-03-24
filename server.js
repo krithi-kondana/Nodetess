@@ -54,19 +54,33 @@ global.templateRules = [];
 global.db=null; 
 global.sqlCon=null;
 
-// let mysqlcon = mysql.createConnection({
-//     host: 'localhost',
-//     user: 'root',
-//     password: ''
-// });
-
 let mysqlcon = mysql.createConnection({
+    host: 'localhost',
+    user: 'root',
+    password: ''
+});
+
+//let mysqlcon3 = mysql.createConnection('mysql://doadmin:n50pvqwc59xjqrsc@db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com:25060/defaultdb?ssl-mode=REQUIRED');
+let mysqlcon2 = mysql.createConnection({
     user:'doadmin',
     password:'n50pvqwc59xjqrsc',
-    socketPath:'/var/run/mysqld/mysqld.sock',
+    host:'db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com',
+    port:25060,
     database:'defaultdb'
 })
-
+mysqlcon2.connect(async(err)=> 
+{
+    if (err) 
+    { 
+        console.log(err);
+        console.log('Cannot connect to the MySQL database');
+        return false;
+    }
+    else
+    {
+        console.log('Works');
+    }
+});
 
 mysqlcon.connect(async(err)=> 
 {
