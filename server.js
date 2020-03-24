@@ -66,7 +66,10 @@ let mysqlcon2 = mysql.createConnection({
     password:'n50pvqwc59xjqrsc',
     host:'db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com',
     port:25060,
-    database:'defaultdb'
+    database:'defaultdb',
+    ssl:{
+        ca:fs.readFileSync(path.join(__dirname, './crt/ca-certificate.crt'))
+    }
 })
 mysqlcon2.connect(async(err)=> 
 {
