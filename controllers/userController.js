@@ -1,9 +1,8 @@
-const secret = require('../credentials/secrets');
 const emailSender = require('./emailSenderController');
-
+const jwt = require('jsonwebtoken');
 class UserController 
 {
-    static createUser = (jEntry,res) =>
+    static createUser = (jEntry,unsaltedPassword,res) =>
     {
         try
         {
@@ -26,9 +25,9 @@ class UserController
             valueString+="?";
             valuesArray.push(jEntry[keys[i]]);
     
-            global.sqlCon.query("SELECT id FROM luitel.users WHERE cvr=? OR email=?",[jEntry.cvr,jEntry.email],(err,jResult)=>
+            global.sqlCon.query("SELECT user_id FROM luitel.users WHERE cvr=? OR email=?",[jEntry.cvr,jEntry.email],(err,jResult)=>
             {
-                if(jResult.length == 0)
+                if(jResult && jResult.length == 0)
                 {
                     global.sqlCon.query("INSERT INTO luitel.users ("+keyString+") VALUES ("+valueString+")",valuesArray,function (err,jResult)
                     {
@@ -43,11 +42,12 @@ class UserController
                         }
                         else
                         {
-                            console.log(jEntry.activationKey);
-                            emailSender.sendEmail(jEntry.activationKey,'claudiu.cuciurean@yahoo.com');
+                            emailSender.sendAuthenticationEmail(unsaltedPassword,jEntry.email);
+                            //res = cookieliciousController.addCookie(res,'key',jwt.sign(jResult.insertId,secrets.jwtSecret)); 
                             return res.status(200).send(
                             {
                                 "message":"Entry added succesfully !",
+                                "cookie":jwt.sign(jResult[0].user_id,secrets.jwtSecret),
                                 "code":200
                             });
                         }
@@ -77,11 +77,11 @@ class UserController
     {
         try
         {
-            let key = cookielicious.readCookie(req,'key');
+            let key = cookieliciousController.readCookie(req,'key');
             
             if(key)
             {
-                let decoded = jwt.verify(key,hashSecret.jwtSecret);
+                let decoded = jwt.verify(key,secrets.jwtSecret);
 
                 if(decoded && decoded == Number(decoded))
                 {
@@ -124,7 +124,7 @@ class UserController
     {
         try
         {
-            res = cookielicious.deleteCookie(res,'key');
+            res = cookieliciousController.deleteCookie(res,'key');
             return res.status(200).send(
             {
                     "message":"Succesfully logged out !",
@@ -144,42 +144,38 @@ class UserController
     {
         try
         {
-        global.sqlCon.query("SELECT * FROM luitel.users WHERE username=? OR email=?",[jEntry.login, jEntry.login],(err,jResult)=>
+            global.sqlCon.query("SELECT * FROM luitel.users WHERE cvr=? OR email=?",[jEntry.login, jEntry.login],(err,jResult)=>
             {
-            if(err)
-            {
-                return res.status(500).send({"message":"Error !"});
-            }
-            else
-            { 
-                if(jResult.length==1 && jResult[0].activated == 1)
+                if(err)
                 {
-                
-                if(jResult[0].password == jEntry.password)
-                {
-                    // setting the cookie on the serverside ( httponly ) with the jsonwebtoken signature of the id.
+                    return res.status(500).send({"message":"Error !"});
+                }
+                else
+                { 
+                    if(jResult.length==1)
+                    {
+                        if(jResult[0].password == jEntry.password)
+                        {
+                            // setting the cookie on the serverside ( httponly ) with the jsonwebtoken signature of the id.
 
-                    res = cookielicious.addCookie(res,'key',jwt.sign(jResult[0].id,hashSecret.jwtSecret)); 
-                    return res.status(200).send({"message":'logged'});
+                            //res = cookieliciousController.addCookie(res,'key',jwt.sign(jResult[0].user_id,secrets.jwtSecret)); 
+                            return res.status(200).send({"message":'Succesfully logged',"cookie":jwt.sign(jResult[0].user_id,secrets.jwtSecret),"code":200});
+                        }
+                        else
+                        {
+                            return res.status(200).send({"message":"Invalid username/password !","code":401});
+                        }
+                    }
+                    else
+                    {
+                        return res.status(200).send({"message":"Invalid username/password !","code":401});
+                    }
                 }
-                else
-                {
-                    return res.status(401).send({"message":"Invalid username/password !"});
-                }
-                }
-                else
-                {
-                return res.status(401).send({"message":"Invalid username/password !"});
-                }
-                
-            }
-            
             });
-    
         }
         catch(err)
         {
-            return res.status(500).send(
+            return res.status(200).send(
             {
                     "message":"Error !",
                     "code":500

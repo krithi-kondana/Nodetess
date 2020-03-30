@@ -10,6 +10,7 @@ const sha512 = require('js-sha512');
 const fs = require('fs');
 const socketIo = require('socket.io');
 const mysql = require('mysql');
+const cookieParser = require('cookie-parser');
 const ioServer = require('http').Server(server);
 const gm = require('gm');
 global.io = require('socket.io')(ioServer);
@@ -20,8 +21,6 @@ const csvParser = require('csv-parser');
 const xlsx = require('node-xlsx');
 const request  = require('request');
 global.connections = [];
-
-global.hashsalt = "MtVOadElRzg6qp40vF7Z";
 /*
     Controllers
 */
@@ -38,6 +37,11 @@ global.hashsalt = "MtVOadElRzg6qp40vF7Z";
 
 
 */
+
+
+global.secrets = require('./credentials/secrets');
+global.cookieliciousController = require('./controllers/cookieController');
+global.passwordController = require('./controllers/passwordController');
 global.MasterlistController= require('./controllers/masterlistController');
 global.TemplateController = require('./controllers/templateController');
 global.PDFController = require('./controllers/pdfController');
@@ -71,19 +75,21 @@ let mysqlcon2 = mysql.createConnection({
         ca:fs.readFileSync(path.join(__dirname, './crt/ca-certificate.crt'))
     }
 })
-mysqlcon2.connect(async(err)=> 
-{
-    if (err) 
-    { 
-        console.log(err);
-        console.log('Cannot connect to the MySQL database');
-        return false;
-    }
-    else
-    {
-        console.log('Works');
-    }
-});
+//mysql -u doadmin -pn50pvqwc59xjqrsc -h db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com -P 25060 -D defaultdb -e "ALTER USER 'doadmin'@'db-mysql-lon1-17795-do-user-6946505-0.db.ondigitalocean.com' IDENTIFIED WITH mysql_native_password BY 'n50pvqwc59xjqrsc'"
+
+// mysqlcon2.connect(async(err)=> 
+// {
+//     if (err) 
+//     { 
+//         console.log(err);
+//         console.log('Cannot connect to the MySQL database');
+//         return false;
+//     }
+//     else
+//     {
+//         console.log('Works');
+//     }
+// });
 
 mysqlcon.connect(async(err)=> 
 {
@@ -478,18 +484,28 @@ server.get('/offers',(req,res)=>
         res.status(500).send({'message':'Internal Server Error!'});
     }
 })
+getDate=()=>
+{
+	let date=new Date();
+	date.setTime(date.getTime()-date.getTimezoneOffset()*60*1000);
+	return date.toISOString().slice(0, 19).replace('T', ' ');
+}
 server.post('/register-user',(req,res)=>
 {
     try
     {
+        let unsaltedPassword = passwordController.createRandomPassword(15);
         let jEntry =
         {
-            'username':req.body.username, // required
-            'number':req.body.email, // required
-            'password':sha512(req.body.password + hashsalt), // required
-            'cvr':req.body.cvr
+            'name':req.body.name, // required
+            'mobil':req.body.number, // required
+            'email':req.body.email,
+            'cvr':req.body.cvr,
+            'joined':getDate(),
+            'password':sha512( unsaltedPassword + secrets.passSecret),
+            'type':1 // required
         };
-        UserController.createUser(jEntry,res);
+        UserController.createUser(jEntry,unsaltedPassword,res);
     }
     catch(err)
     {
@@ -501,7 +517,12 @@ server.post('/login-user',(req,res)=>
 {
     try
     {
-
+        let jEntry=
+        {
+            'login':req.body.login,
+            'password':sha512(req.body.password + secrets.passSecret)
+        }
+        UserController.login(jEntry,res);
     }
     catch(err)
     {
