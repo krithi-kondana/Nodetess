@@ -101,7 +101,7 @@ mysqlcon2.connect(async(err)=>
     }
     else
     {
-        sqlCon=mysqlcon;
+        sqlCon=mysqlcon2;
         originalTemplates = await TemplateController.getTemplateNameIdentifier();
         zoneTemplates = await TemplateController.getTemplateZones();
         companies = await CompanyController.getCompanies();
