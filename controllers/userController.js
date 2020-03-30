@@ -47,7 +47,7 @@ class UserController
                             return res.status(200).send(
                             {
                                 "message":"Entry added succesfully !",
-                                "cookie":jwt.sign(jResult[0].id,secrets.jwtSecret),
+                                //"cookie":jwt.sign(jResult[0].id,secrets.jwtSecret),
                                 "code":200
                             });
                         }
